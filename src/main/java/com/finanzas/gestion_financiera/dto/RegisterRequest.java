@@ -22,5 +22,5 @@ public class RegisterRequest {
             regexp = "^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).+$",
             message = "Debe tener mayúscula, número y carácter especial"
     )
-    private String contraseña;
+    private String contrasena;
 }

@@ -28,7 +28,7 @@ public class AuthService {
         user.setPrimer_nombre(request.getPrimer_nombre());
         user.setApellido(request.getApellido());
         user.setEmail(request.getEmail());
-        user.setContraseña(passwordEncoder.encode(request.getContraseña()));
+        user.setContrasena(passwordEncoder.encode(request.getContrasena()));
 
         usuarioRepository.save(user);
 
@@ -42,7 +42,7 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Credenciales inválidas"));
 
         // Verificar contraseña
-        if (!passwordEncoder.matches(request.getContraseña(), user.getContraseña())) {
+        if (!passwordEncoder.matches(request.getContrasena(), user.getContrasena())) {
             throw new RuntimeException("Credenciales inválidas");
         }
 
