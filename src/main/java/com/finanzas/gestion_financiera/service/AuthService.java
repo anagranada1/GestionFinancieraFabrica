@@ -16,6 +16,7 @@ public class AuthService {
     private final UserRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final CategoryInitService categoryInitService;
 
     public AuthResponse register(RegisterRequest request) {
         // Verificar si el email ya existe
@@ -31,6 +32,7 @@ public class AuthService {
         user.setContrasena(passwordEncoder.encode(request.getContrasena()));
 
         usuarioRepository.save(user);
+        categoryInitService.crearCategoriasPorDefecto(user);
 
         String token = jwtService.generateToken(user.getEmail());
         return new AuthResponse(token, user.getEmail(), user.getPrimer_nombre());
