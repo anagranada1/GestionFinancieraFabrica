@@ -60,7 +60,7 @@ class JwtAuthFilterTest {
         // Arrange - request sin header
 
         // Act
-        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+        jwtAuthFilter.doFilter(request, response, filterChain);
 
         // Assert
         verify(filterChain).doFilter(request, response);
@@ -74,7 +74,7 @@ class JwtAuthFilterTest {
         request.addHeader("Authorization", "Basic abc123");
 
         // Act
-        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+        jwtAuthFilter.doFilter(request, response, filterChain);
 
         // Assert
         verify(filterChain).doFilter(request, response);
@@ -89,7 +89,7 @@ class JwtAuthFilterTest {
         when(jwtService.isTokenValid("invalid-token")).thenReturn(false);
 
         // Act
-        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+        jwtAuthFilter.doFilter(request, response, filterChain);
 
         // Assert
         verify(filterChain).doFilter(request, response);
@@ -110,7 +110,7 @@ class JwtAuthFilterTest {
         when(userRepository.findByEmail("test@email.com")).thenReturn(Optional.of(user));
 
         // Act
-        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+        jwtAuthFilter.doFilter(request, response, filterChain);
 
         // Assert
         verify(filterChain).doFilter(request, response);
@@ -129,7 +129,7 @@ class JwtAuthFilterTest {
         when(userRepository.findByEmail("ghost@email.com")).thenReturn(Optional.empty());
 
         // Act
-        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+        jwtAuthFilter.doFilter(request, response, filterChain);
 
         // Assert
         verify(filterChain).doFilter(request, response);
