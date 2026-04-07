@@ -1,0 +1,234 @@
+package com.finanzas.gestion_financiera.unit.service;
+
+import com.finanzas.gestion_financiera.dto.TransactionRequest;
+import com.finanzas.gestion_financiera.dto.TransactionResponse;
+import com.finanzas.gestion_financiera.entity.Category;
+import com.finanzas.gestion_financiera.entity.Transaction;
+import com.finanzas.gestion_financiera.entity.User;
+import com.finanzas.gestion_financiera.repository.CategoryRepository;
+import com.finanzas.gestion_financiera.repository.TransactionRepository;
+import com.finanzas.gestion_financiera.repository.UserRepository;
+import com.finanzas.gestion_financiera.service.TransactionService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("TransactionService - Unit Tests")
+class TransactionServiceTest {
+
+    @Mock
+    private TransactionRepository transactionRepository;
+
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @InjectMocks
+    private TransactionService transactionService;
+
+    private User testUser;
+    private Category testCategory;
+
+    @BeforeEach
+    void setUp() {
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setEmail("test@email.com");
+
+        testCategory = new Category();
+        testCategory.setId(10L);
+        testCategory.setNombre("Salario");
+        testCategory.setTipo(Category.TipoCategoria.INGRESO);
+        testCategory.setUsuario(testUser);
+
+        UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername("test@email.com")
+                .password("{noop}")
+                .authorities(List.of())
+                .build();
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities())
+        );
+
+        lenient().when(userRepository.findByEmail("test@email.com")).thenReturn(Optional.of(testUser));
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Nested
+    @DisplayName("crear()")
+    class Crear {
+
+        @Test
+        @DisplayName("Debe crear transacción de ingreso correctamente")
+        void debeCrearTransaccionIngreso() {
+            // Arrange
+            TransactionRequest request = new TransactionRequest();
+            request.setTipo("INGRESO");
+            request.setMonto(new BigDecimal("5000.00"));
+            request.setFecha(LocalDate.of(2026, 4, 1));
+            request.setCategoriaId(10L);
+
+            when(categoryRepository.findById(10L)).thenReturn(Optional.of(testCategory));
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
+                Transaction t = invocation.getArgument(0);
+                t.setId(1L);
+                return t;
+            });
+
+            // Act
+            TransactionResponse response = transactionService.crear(request);
+
+            // Assert
+            assertNotNull(response);
+            assertEquals(1L, response.getId());
+            assertEquals("INGRESO", response.getTipo());
+            assertEquals(new BigDecimal("5000.00"), response.getMonto());
+            assertEquals(LocalDate.of(2026, 4, 1), response.getFecha());
+            assertEquals("Salario", response.getCategoria());
+            verify(transactionRepository).save(any(Transaction.class));
+        }
+
+        @Test
+        @DisplayName("Debe crear transacción de gasto correctamente")
+        void debeCrearTransaccionGasto() {
+            // Arrange
+            Category gastoCategory = new Category();
+            gastoCategory.setId(20L);
+            gastoCategory.setNombre("Alimentación");
+            gastoCategory.setTipo(Category.TipoCategoria.GASTO);
+
+            TransactionRequest request = new TransactionRequest();
+            request.setTipo("GASTO");
+            request.setMonto(new BigDecimal("150.50"));
+            request.setFecha(LocalDate.of(2026, 4, 5));
+            request.setCategoriaId(20L);
+
+            when(categoryRepository.findById(20L)).thenReturn(Optional.of(gastoCategory));
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> {
+                Transaction t = i.getArgument(0);
+                t.setId(2L);
+                return t;
+            });
+
+            // Act
+            TransactionResponse response = transactionService.crear(request);
+
+            // Assert
+            assertEquals("GASTO", response.getTipo());
+            assertEquals(new BigDecimal("150.50"), response.getMonto());
+            assertEquals("Alimentación", response.getCategoria());
+        }
+
+        @Test
+        @DisplayName("Debe lanzar excepción si la categoría no existe")
+        void debeLanzarExcepcionSiCategoriaNoExiste() {
+            // Arrange
+            TransactionRequest request = new TransactionRequest();
+            request.setTipo("INGRESO");
+            request.setMonto(new BigDecimal("100"));
+            request.setFecha(LocalDate.now());
+            request.setCategoriaId(999L);
+
+            when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            RuntimeException exception = assertThrows(RuntimeException.class,
+                    () -> transactionService.crear(request));
+            assertEquals("Categoría no válida", exception.getMessage());
+            verify(transactionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Debe lanzar excepción si el usuario no existe")
+        void debeLanzarExcepcionSiUsuarioNoExiste() {
+            // Arrange
+            TransactionRequest request = new TransactionRequest();
+            request.setTipo("INGRESO");
+            request.setMonto(new BigDecimal("100"));
+            request.setFecha(LocalDate.now());
+            request.setCategoriaId(10L);
+
+            when(userRepository.findByEmail("test@email.com")).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThrows(RuntimeException.class,
+                    () -> transactionService.crear(request));
+        }
+    }
+
+    @Nested
+    @DisplayName("listar()")
+    class Listar {
+
+        @Test
+        @DisplayName("Debe listar transacciones del usuario autenticado")
+        void debeListarTransaccionesDelUsuario() {
+            // Arrange
+            Transaction t1 = new Transaction();
+            t1.setId(1L);
+            t1.setTipo("INGRESO");
+            t1.setMonto(new BigDecimal("3000"));
+            t1.setFecha(LocalDate.of(2026, 4, 1));
+            t1.setUsuario(testUser);
+            t1.setCategoria(testCategory);
+
+            Transaction t2 = new Transaction();
+            t2.setId(2L);
+            t2.setTipo("GASTO");
+            t2.setMonto(new BigDecimal("500"));
+            t2.setFecha(LocalDate.of(2026, 4, 2));
+            t2.setUsuario(testUser);
+            t2.setCategoria(testCategory);
+
+            when(transactionRepository.findByUsuarioId(1L)).thenReturn(List.of(t1, t2));
+
+            // Act
+            List<TransactionResponse> result = transactionService.listar();
+
+            // Assert
+            assertEquals(2, result.size());
+            assertEquals("INGRESO", result.get(0).getTipo());
+            assertEquals(new BigDecimal("3000"), result.get(0).getMonto());
+            assertEquals("GASTO", result.get(1).getTipo());
+            assertEquals(new BigDecimal("500"), result.get(1).getMonto());
+        }
+
+        @Test
+        @DisplayName("Debe retornar lista vacía si no tiene transacciones")
+        void debeRetornarListaVacia() {
+            // Arrange
+            when(transactionRepository.findByUsuarioId(1L)).thenReturn(List.of());
+
+            // Act
+            List<TransactionResponse> result = transactionService.listar();
+
+            // Assert
+            assertTrue(result.isEmpty());
+        }
+    }
+}
